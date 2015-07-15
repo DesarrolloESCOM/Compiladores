@@ -5,7 +5,7 @@
 #include <string.h>
 #include "calc.tab.h"
  
-#define TABSIZE 10
+#define TABSIZE 1000
 #define true 1
 #define false 0
  
@@ -64,28 +64,25 @@ int install(char *txt)
 }
  
 %}
- 
-ALPHA   [a-z]|[a-z][a-z]
-NUM     [0-9]|[0-9][0-9]
-Integer [0-9]+
-SignedIntEgeR "-"?{Integer}
-Decimal "( "{SignedIntEgeR}"."{Integer}" )"
- 
+
+VariableRegex [a-zA-z|_]{1}[a-zA-z|0-9^\\s]+ 
+
 %%
- 
 [ \n\t]                 { }
- 
-Integer  {
-    /* convert yytext to a double and return it  */
+
+[0-9]+ {    
+    /* convert yytext to a double and return it  */    
     yylval.intnum = atoi(yytext);
     return INT_NUMBER;
 }
- 
-Decimal {
+
+[0-9]+"."[0-9]+ {      
     yylval.num = atof(yytext);
     return NUMBER;  
 }
-{ALPHA}|{ALPHA}{NUM}    {
+
+[a-zA-z] {
+    printf("Es variable!\n");
     /* install the variable found to the array and return the index */
     yylval.index = install(yytext);
     return VARIABLE;

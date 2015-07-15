@@ -6,7 +6,7 @@
 #include <math.h>
 #include "calc.tab.h"
  
-#define TABSIZE 10
+#define TABSIZE 1000
 #define true 1
 #define false 0
  
@@ -21,7 +21,6 @@ extern void reset();
 /* variables for the grammar file */
 int invalid = false;            // just added for error checking
 double double_var_values[TABSIZE];     // array where all the values are stored
-double int_var_values[TABSIZE];     // array where all the values are stored
  
 int yyerror(const char *p) 
 {
@@ -58,8 +57,8 @@ int yyerror(const char *p)
 %type <intnum> int_term
 %type <num> term
 
-%type <intnum> int_factor
 %type <num> factor
+%type <intnum> int_factor
 
 %type <intnum> int_primary
 %type <num> primary
@@ -81,73 +80,83 @@ expression : term                           { $$ = $1; }
 |   expression '+' term                     { $$ = $1 + $3; }
 |   int_expression '+' term                 { $$ = $1 + $3; }
 |   expression '+' int_term                 { $$ = $1 + $3; }
-
 |   expression '-' term                     { $$ = $1 - $3; }
 |   int_expression '-' term                 { $$ = $1 - $3; }
 |   expression '-' int_term                 { $$ = $1 - $3; }
 ;
 
-int_expression : int_term                   { $$ = $1; }
-|   '-' int_term                            { $$ = -$2; }
-|   int_expression '+' int_term             { $$ = $1 + $3; }
-|   int_expression '-' int_term             { $$ = $1 - $3; }
+int_expression : int_term                           { $$ = (int)$1; }
+|   '-' int_term                                { $$ = -$2; }
+|   int_expression '+' int_term                     { $$ = $1 + $3; }
+|   int_expression '-' int_term                     { $$ = $1 - $3; }
 ;
  
 term : factor                               { $$ = $1; }
 |   term '*' factor                         { $$ = $1 * $3; }
-|   term '*' int_factor                     { $$ = $1 * $3; }
-|   int_term '*' factor                     { $$ = $1 * $3; }
 |   term '/' factor                         { if($3 == 0) yyerror("undefined"); else $$ = $1 / $3;  }
-|   term '/' int_factor                     { if($3 == 0) yyerror("undefined"); else $$ = $1 / $3;  }
-|   int_term '/' factor                     { if($3 == 0) yyerror("undefined"); else $$ = $1 / $3;  }
 ;
 
-int_term : int_factor                       { $$ = $1; }
-|   int_term '*' int_factor                 { $$ = $1 * $3; }
-|   int_term '/' int_factor                 { if($3 == 0) yyerror("undefined"); else $$ = $1 / $3;  }
+int_term : int_factor                               { $$ = (int)$1; }
+|   int_term '*' int_factor                         { $$ = $1 * $3; }
+|   int_term '/' int_factor                         { if($3 == 0) yyerror("undefined"); else $$ = $1 / $3;  }
 ;
- 
-factor : primary                            { $$ = $1; };
-int_factor : int_primary                    {$$ = $1;}; 
 
+factor : primary                            { $$ = $1; }
+;
 primary : NUMBER                            { $$ = $1; }
 |   VARIABLE                                {   
   if(!var_def[$1]) {
     yyerror("undefined"); 
-  } else {    
-    if(var_type[$1] == 2) {      
-      $$ = double_var_values[$1];    
+  } else {
+    printf("Existe variable [%i]\n",$1);
+    printf("Tipo: %i\n",var_type[$1]);
+    if(var_type[$1] == 1){
+      $$ = (int) double_var_values[$1];  
     } else {
-      $$ = 0;
+      $$ = double_var_values[$1];
     }    
+    
   }  
 }
 |   '(' expression ')'                      { $$ = $2; }
 ;
-
-int_primary : INT_NUMBER                        { $$ = $1; }
+int_factor : int_primary                    { $$ = (int) $1; }
+;
+int_primary : INT_NUMBER                    { $$ = (int) $1; }
 |   VARIABLE                                {   
   if(!var_def[$1]) {
     yyerror("undefined"); 
   } else {    
-    if(var_type[$1] == 2) {      
-      $$ = int_var_values[$1];    
-    } else {
-      $$ = 0;
-    }    
+    printf("Existe variable [%i]\n",$1);
+    printf("Tipo: %i\n",var_type[$1]);    
+    $$ = (int) double_var_values[$1];
   }  
 }
 |   '(' int_expression ')'                      { $$ = $2; }
 ;
- 
-int_assignment :  INT VARIABLE '=' int_expression    { $$ = int_var_values[$2] = $4; var_def[$2] = 1; var_type[$2] = 1; printf("Asignacion Entera\n");};
-float_assignment : FLOAT VARIABLE '=' expression    { $$ = double_var_values[$2] = $4; var_def[$2] = 1; var_type[$2] = 2; printf("Asignacion Flotante\n");}; 
+int_assignment :  INT VARIABLE '=' int_expression    {
+  printf("Es entero [%i]!\n",$2);
+  var_def[$2] = 1; 
+  var_type[$2] = 1;
+  $$ = double_var_values[$2] = $4;
+};
+float_assignment : FLOAT VARIABLE '=' expression    { 
+  printf("Es decimal [%i]!\n",$2);
+  var_def[$2] = 1; 
+  var_type[$2] = 2;
+  $$ = double_var_values[$2] = $4; 
+}; 
 %%
  
 int main(void)
 {
     /* reset all the definition flags first */
     reset();
+    int j;
+    for(j = 0; j < TABSIZE; j++){
+      var_def[j] = 0;
+      var_type[j] = -1;
+    }
     
     yyparse();
      
