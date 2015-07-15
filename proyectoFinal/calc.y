@@ -1,103 +1,155 @@
 %{
-
+/*  Written by: Yancy Vance M. Paredes. */
 #include <stdio.h>
 #include <stdlib.h>
-
-extern int yylex();
-extern int yyparse();
-extern FILE* yyin;
-
-void yyerror(const char* s);
+#include <string.h>
+#include <math.h>
+#include "calc.tab.h"
+ 
+#define TABSIZE 10
+#define true 1
+#define false 0
+ 
+/* the following were defined in lexana.l */
+extern char* var_names[TABSIZE];
+extern int var_def[TABSIZE];
+extern int var_type[TABSIZE];
+extern int n_of_names;
+extern int install(char *txt);
+extern void reset();
+ 
+/* variables for the grammar file */
+int invalid = false;            // just added for error checking
+double double_var_values[TABSIZE];     // array where all the values are stored
+double int_var_values[TABSIZE];     // array where all the values are stored
+ 
+int yyerror(const char *p) 
+{
+    fprintf(stderr, "%s\n", p); // print the error message
+    invalid = true;
+}
+ 
 %}
-
+ 
 %union {
-	double fval;
-	int ival;
-}
+    /* this will be used for the yylval. */
+    /* it is a union since two data types will be used */
+    double num;     // the number provided by the user
+    int intnum;
+    int index;      // index of the variable name inside the array
+};
+ 
+%start manycmds
+%token <index> VARIABLE
 
-%token<fval> T_FLOAT
-%token<ival> T_INTEGER
-%token T_PLUS T_MINUS T_MULTIPLY T_DIVIDE
-%token T_NEWLINE T_QUIT
-%token T_EQUAL
-%token T_SPACE_CHAR
-%token T_TYPE_INTEGER
-%token T_TYPE_FLOAT
-%left T_PLUS T_MINUS
-%left T_MULTIPLY T_DIVIDE
+%token INT FLOAT
 
-%type<ival> int_variable
-%type<fval> float_variable
+%token <intnum> INT_NUMBER
+%token <num> NUMBER
 
-%type<ival> expression_integer
-%type<fval> expression_float
+%type <num> onecmd
 
-%type<ival> integer_assignation
-%type<fval> float_assignation
+%type <intnum> int_expression
+%type <num> expression
 
-%start calculation
+%type <intnum> int_assignment
+%type <num> float_assignment
 
+%type <intnum> int_term
+%type <num> term
+
+%type <intnum> int_factor
+%type <num> factor
+
+%type <intnum> int_primary
+%type <num> primary
+
+ 
 %%
+ 
+manycmds : onecmd                           { }
+|   manycmds onecmd                         { }
+;
+ 
+onecmd : expression ';'                     { if(!invalid) fprintf(stderr, "%f\n", $1); invalid = 0; }
+|   int_expression ';'                      { if(!invalid) fprintf(stderr, "%i\n", $1); invalid = 0; }
+|   float_assignment ';'                    { if(!invalid) fprintf(stderr, "%f\n", $1); invalid = 0; }
+|   int_assignment ';'                      { if(!invalid) fprintf(stderr, "%i\n", $1); invalid = 0; }
+ 
+expression : term                           { $$ = $1; }
+|   '-' term                                { $$ = -$2; }
+|   expression '+' term                     { $$ = $1 + $3; }
+|   int_expression '+' term                 { $$ = $1 + $3; }
+|   expression '+' int_term                 { $$ = $1 + $3; }
 
-calculation: 
-	   | calculation line
+|   expression '-' term                     { $$ = $1 - $3; }
+|   int_expression '-' term                 { $$ = $1 - $3; }
+|   expression '-' int_term                 { $$ = $1 - $3; }
 ;
 
-line: T_NEWLINE
-	| expression_integer T_NEWLINE { printf("\tResultado: %i\n", $1); } 	
-    | expression_float T_NEWLINE { printf("\tResultado: %f\n", $1); } 
-    | integer_assignation T_NEWLINE {printf("ENTERO ASIGNADO");}
-    | float_assignation T_NEWLINE {printf("FLOTANTE ASIGNADO");}
-    | variable_value T_NEWLINE {printf("El valor de %s es %i", (char*)"Hola",5);}
-    | T_QUIT T_NEWLINE { printf("bye!\n"); exit(0); }
+int_expression : int_term                   { $$ = $1; }
+|   '-' int_term                            { $$ = -$2; }
+|   int_expression '+' int_term             { $$ = $1 + $3; }
+|   int_expression '-' int_term             { $$ = $1 - $3; }
+;
+ 
+term : factor                               { $$ = $1; }
+|   term '*' factor                         { $$ = $1 * $3; }
+|   term '*' int_factor                     { $$ = $1 * $3; }
+|   int_term '*' factor                     { $$ = $1 * $3; }
+|   term '/' factor                         { if($3 == 0) yyerror("undefined"); else $$ = $1 / $3;  }
+|   term '/' int_factor                     { if($3 == 0) yyerror("undefined"); else $$ = $1 / $3;  }
+|   int_term '/' factor                     { if($3 == 0) yyerror("undefined"); else $$ = $1 / $3;  }
 ;
 
-integer_assignation: T_TYPE_INTEGER T_SPACE_CHAR T_VARIABLE T_EQUAL expression_integer {/*int var1=var23*/}
-	| T_TYPE_INTEGER T_SPACE_CHAR T_VARIABLE T_EQUAL T_INTEGER {/*int var1=5*/}
-	| T_VARIABLE T_EQUAL expression_integer {/*var1= var2+2*/}
-	| T_VARIABLE T_EQUAL T_INTEGER {/*var1 = 2*/}
+int_term : int_factor                       { $$ = $1; }
+|   int_term '*' int_factor                 { $$ = $1 * $3; }
+|   int_term '/' int_factor                 { if($3 == 0) yyerror("undefined"); else $$ = $1 / $3;  }
 ;
-float_assignation: T_TYPE_FLOAT T_SPACE_CHAR T_VARIABLE T_EQUAL expression_float {/*int var1=var23*/}
-	| T_TYPE_FLOAT T_SPACE_CHAR T_VARIABLE T_EQUAL T_FLOAT {/*int var1=5*/}
-	| T_VARIABLE T_EQUAL expression_float {/*var1= var2+2*/}
-	| T_VARIABLE T_EQUAL T_FLOAT {/*var1 = 2*/}
-;
-expression_float: T_FLOAT				{ $$ = $1; }
-	| float_variable {/*$$ = funcionQueLlamaFlotanteDeEstructura($$1, 2)*/}
-	| float_variable T_PLUS float_variable {/*$$ = funcionQueLlamaFlotanteDeEstructura($$1, 2) + funcionQueLLama...($$3,2)*/}
-	| float_variable T_MINUS float_variable {/*$$ = funcionQueLlamaFlotanteDeEstructura($$1, 2) - funcionQueLLama...($$3,2)*/}
-	| float_variable T_MULTIPLY float_variable {/*$$ = funcionQueLlamaFlotanteDeEstructura($$1, 2) * funcionQueLLama...($$3,2)*/}
-	| float_variable T_DIVIDE float_variable {/*$$ = funcionQueLlamaFlotanteDeEstructura($$1, 2) / funcionQueLLama...($$3,2)*/}
-	| expression_float T_PLUS expression_float	{ $$ = $1 + $3; }
-	| expression_float T_PLUS expression_integer	{ $$ = $1 + $3; }
-	| expression_integer T_PLUS expression_float	{ $$ = $1 + $3; }
-	| expression_float T_MINUS expression_float	{ $$ = $1 - $3; }
-	| expression_float T_MINUS expression_integer	{ $$ = $1 - $3; }
-	| expression_integer T_MINUS expression_float	{ $$ = $1 - $3; }
-	| expression_float T_MULTIPLY expression_float	{ $$ = $1 * $3; }
-	| expression_float T_MULTIPLY expression_integer	{ $$ = $1 * $3; }
-	| expression_integer T_MULTIPLY expression_float	{ $$ = $1 * $3; }
-	| expression_float T_DIVIDE expression_float	{ $$ = $1 / $3; }
-	| expression_float T_DIVIDE expression_integer	{ $$ = $1 / $3; }
-	| expression_integer T_DIVIDE expression_float	{ $$ = $1 / $3; }
- ;
-expression_integer: T_INTEGER				{ $$ = $1; }
-	  | expression_integer T_PLUS expression_integer	{ $$ = $1 + $3; }
-	  | expression_integer T_MINUS expression_integer	{ $$ = $1 - $3; }
-	  | expression_integer T_MULTIPLY expression_integer	{ $$ = $1 * $3; }
-	  | expression_integer T_DIVIDE expression_integer	{ $$ = $1 / $3; }
-  ;
-%%
+ 
+factor : primary                            { $$ = $1; };
+int_factor : int_primary                    {$$ = $1;}; 
 
-main() {
-	yyin = stdin;
-
-	do { 
-		yyparse();
-	} while(!feof(yyin));
+primary : NUMBER                            { $$ = $1; }
+|   VARIABLE                                {   
+  if(!var_def[$1]) {
+    yyerror("undefined"); 
+  } else {    
+    if(var_type[$1] == 2) {      
+      $$ = double_var_values[$1];    
+    } else {
+      $$ = 0;
+    }    
+  }  
 }
+|   '(' expression ')'                      { $$ = $2; }
+;
 
-void yyerror(const char* s) {
-	fprintf(stderr, "Parse error: %s\n", s);
-	exit(1);
+int_primary : INT_NUMBER                        { $$ = $1; }
+|   VARIABLE                                {   
+  if(!var_def[$1]) {
+    yyerror("undefined"); 
+  } else {    
+    if(var_type[$1] == 2) {      
+      $$ = int_var_values[$1];    
+    } else {
+      $$ = 0;
+    }    
+  }  
+}
+|   '(' int_expression ')'                      { $$ = $2; }
+;
+ 
+int_assignment :  INT VARIABLE '=' int_expression    { $$ = int_var_values[$2] = $4; var_def[$2] = 1; var_type[$2] = 1; printf("Asignacion Entera\n");};
+float_assignment : FLOAT VARIABLE '=' expression    { $$ = double_var_values[$2] = $4; var_def[$2] = 1; var_type[$2] = 2; printf("Asignacion Flotante\n");}; 
+%%
+ 
+int main(void)
+{
+    /* reset all the definition flags first */
+    reset();
+    
+    yyparse();
+     
+    return 0;
 }
