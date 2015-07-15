@@ -1,5 +1,4 @@
 %{
-/*  Written by: Yancy Vance M. Paredes. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,6 +39,7 @@ int yyerror(const char *p)
  
 %start manycmds
 %token <index> VARIABLE
+%token <index> INT_VARIABLE
 
 %token INT FLOAT
 
@@ -70,10 +70,10 @@ manycmds : onecmd                           { }
 |   manycmds onecmd                         { }
 ;
  
-onecmd : expression ';'                     { if(!invalid) fprintf(stderr, "%f\n", $1); invalid = 0; }
-|   int_expression ';'                      { if(!invalid) fprintf(stderr, "%i\n", $1); invalid = 0; }
-|   float_assignment ';'                    { if(!invalid) fprintf(stderr, "%f\n", $1); invalid = 0; }
-|   int_assignment ';'                      { if(!invalid) fprintf(stderr, "%i\n", $1); invalid = 0; }
+onecmd : expression ';'                     { if(!invalid) fprintf(stderr, ">> %f\n", $1); invalid = 0; }
+|   int_expression ';'                      { if(!invalid) fprintf(stderr, ">>  %i\n", $1); invalid = 0; }
+|   float_assignment ';'                    { if(!invalid) fprintf(stderr, ">>  %f\n", $1); invalid = 0; }
+|   int_assignment ';'                      { if(!invalid) fprintf(stderr, ">>  %i\n", $1); invalid = 0; }
  
 expression : term                           { $$ = $1; }
 |   '-' term                                { $$ = -$2; }
@@ -93,7 +93,11 @@ int_expression : int_term                           { $$ = (int)$1; }
  
 term : factor                               { $$ = $1; }
 |   term '*' factor                         { $$ = $1 * $3; }
+|   term '*' int_factor                         { $$ = $1 * $3; }
+|   int_term '*' factor                         { $$ = $1 * $3; }
 |   term '/' factor                         { if($3 == 0) yyerror("undefined"); else $$ = $1 / $3;  }
+|   term '/' int_factor                         { if($3 == 0) yyerror("undefined"); else $$ = $1 / $3;  }
+|   int_term '/' factor                         { if($3 == 0) yyerror("undefined"); else $$ = $1 / $3;  }
 ;
 
 int_term : int_factor                               { $$ = (int)$1; }
@@ -107,9 +111,7 @@ primary : NUMBER                            { $$ = $1; }
 |   VARIABLE                                {   
   if(!var_def[$1]) {
     yyerror("undefined"); 
-  } else {
-    printf("Existe variable [%i]\n",$1);
-    printf("Tipo: %i\n",var_type[$1]);
+  } else {    
     if(var_type[$1] == 1){
       $$ = (int) double_var_values[$1];  
     } else {
@@ -123,25 +125,21 @@ primary : NUMBER                            { $$ = $1; }
 int_factor : int_primary                    { $$ = (int) $1; }
 ;
 int_primary : INT_NUMBER                    { $$ = (int) $1; }
-|   VARIABLE                                {   
+|   INT_VARIABLE                                {     
   if(!var_def[$1]) {
     yyerror("undefined"); 
-  } else {    
-    printf("Existe variable [%i]\n",$1);
-    printf("Tipo: %i\n",var_type[$1]);    
+  } else {        
     $$ = (int) double_var_values[$1];
   }  
 }
 |   '(' int_expression ')'                      { $$ = $2; }
 ;
-int_assignment :  INT VARIABLE '=' int_expression    {
-  printf("Es entero [%i]!\n",$2);
+int_assignment :  INT VARIABLE '=' int_expression    {  
   var_def[$2] = 1; 
   var_type[$2] = 1;
   $$ = double_var_values[$2] = $4;
 };
-float_assignment : FLOAT VARIABLE '=' expression    { 
-  printf("Es decimal [%i]!\n",$2);
+float_assignment : FLOAT VARIABLE '=' expression    {   
   var_def[$2] = 1; 
   var_type[$2] = 2;
   $$ = double_var_values[$2] = $4; 

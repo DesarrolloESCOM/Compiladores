@@ -1,5 +1,4 @@
 %{
-/*  Written by: Yancy Vance M. Paredes. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,25 +26,20 @@ void reset()
 
 int install(char *txt)
 {
-    int j; char *s;    
+    int j; 
+    char *s;    
     /* if the table of var_names is still empty */
     /* add the first record at 0 and return 0 */
     if(n_of_names == 0) {
         s = strdup(txt);
         var_names[0] = s;
-        ++n_of_names;
-        /*for(j = 0; j < TABSIZE; j++){
-          printf("--> %s\n",var_names[j]);
-        }*/
+        ++n_of_names;       
         return 0;
     }
      
     /* if the table has contents already, return the index */
     for(j = 0; j < n_of_names; ++j) {
-        if(strcmp(txt, var_names[j]) == 0) {
-            /*for(j = 0; j < TABSIZE; j++){
-              printf("--> %s\n",var_names[j]);
-            }*/
+        if(strcmp(txt, var_names[j]) == 0) {            
             return j;
         }
     }
@@ -55,11 +49,9 @@ int install(char *txt)
     s = strdup(txt);
     var_names[j] = s;
     ++n_of_names;
-
     /*for(j = 0; j < TABSIZE; j++){
       printf("--> %s\n",var_names[j]);
     }*/
-
     return j;
 }
  
@@ -81,10 +73,14 @@ VariableRegex [a-zA-z|_]{1}[a-zA-z|0-9^\\s]+
     return NUMBER;  
 }
 
-[a-zA-z] {
-    printf("Es variable!\n");
+[a-zA-z0-9]+ {    
     /* install the variable found to the array and return the index */
-    yylval.index = install(yytext);
+    int index;
+    index = install(yytext);
+    yylval.index = index;    
+    if(var_type[index]==1){      
+      return INT_VARIABLE;
+    }
     return VARIABLE;
 }
 
