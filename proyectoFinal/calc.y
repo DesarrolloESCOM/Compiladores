@@ -138,12 +138,37 @@ int_assignment :  INT VARIABLE '=' int_expression    {
   var_def[$2] = 1; 
   var_type[$2] = 1;
   $$ = double_var_values[$2] = $4;
-};
+}
+|INT_VARIABLE '=' int_expression    {  
+  var_def[$1] = 1; 
+  var_type[$1] = 1;
+  double_var_values[$1] = $3;
+  $$ = (int) double_var_values[$1];
+}
+|INT VARIABLE {  
+  var_def[$2] = 1; 
+  var_type[$2] = 1;
+  double_var_values[$2] = 0;
+  $$ = (int) double_var_values[$2];
+}
+;
 float_assignment : FLOAT VARIABLE '=' expression    {   
   var_def[$2] = 1; 
   var_type[$2] = 2;
   $$ = double_var_values[$2] = $4; 
-}; 
+}
+| VARIABLE '=' expression {   
+  var_def[$1] = 1; 
+  var_type[$1] = 2;
+  $$ = double_var_values[$1] = $3; 
+}
+| FLOAT VARIABLE {  
+  var_def[$2] = 1; 
+  var_type[$2] = 2;
+  double_var_values[$2] = 0;
+  $$ = double_var_values[$2];
+}
+; 
 %%
  
 int main(void)
